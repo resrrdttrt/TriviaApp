@@ -28,20 +28,20 @@ def create_app(test_config=None):
     app = Flask(__name__)
     setup_db(app)
     
-# @TODO: Set up CORS. Allow '*' for origins.
-# Delete the sample route after completing the TODOs
-    CORS(app, resources={r"*/api/*": {"origins": "*"}})
-# @TODO: Use the after_request decorator to set Access-Control-Allow
+# # @TODO: Set up CORS. Allow '*' for origins.
+# # Delete the sample route after completing the TODOs
+#     CORS(app, resources={r"*/api/*": {"origins": "*"}})
+# # @TODO: Use the after_request decorator to set Access-Control-Allow
 
-    @app.after_request
-    def after_request(response):
-        response.headers.add(
-            "Access-Control-Allow-Headers",
-            "Content-Type, Authorization")
-        response.headers.add(
-            "Access-Control-Allow-Methods",
-            "GET, POST, PATCH, DELETE, OPTIONS")
-        return response
+#     @app.after_request
+#     def after_request(response):
+#         response.headers.add(
+#             "Access-Control-Allow-Headers",
+#             "Content-Type, Authorization")
+#         response.headers.add(
+#             "Access-Control-Allow-Methods",
+#             "GET, POST, PATCH, DELETE, OPTIONS")
+#         return response
 
 
 
@@ -82,25 +82,32 @@ def create_app(test_config=None):
 
     @app.route("/questions")
     def get_questions():
-        #  Query all question and paginate_questions
-        queryquestion = db.session.query(Question).order_by(Question.id).all()
-        print(queryquestion)
-        request_question = paginate_questions(request, queryquestion)
-        #  Query all categoris by type.
-        get_category = db.session.query(Category).order_by(Category.type).all()
-        #  Abort 404 if questions in each page.
-        if len(request_question) == 0:
-            abort(404)
-        questid = db.session.query(Question).get(Question.id)
-        print(questid)
-        #  Return questions cat type and cat length.
-        return jsonify({
-            'success': True,
-            'questions': request_question,
-            'total_questions': len(queryquestion),
-            # 'categories': {category.id: category.type for category in get_category},
-        })
-        abort(422)
+        try:
+            # Query all questions and paginate questions
+            queryquestion = db.session.query(Question).order_by(Question.id).all()
+            request_question = paginate_questions(request, queryquestion)
+            
+            # Query all categories by type
+            get_category = db.session.query(Category).order_by(Category.type).all()
+            
+            # Abort 404 if no questions in each page
+            if len(request_question) == 0:
+                abort(404)
+            
+            # This line seems incorrect; you likely don't need it
+            # questid = db.session.query(Question).get(Question.id)
+            # print(questid)
+            
+            # Return questions, category type, and category length
+            return jsonify({
+                'success': True,
+                'questions': request_question,
+                'total_questions': len(queryquestion),
+                'categories': {category.id: category.type for category in get_category},
+            })
+        except Exception as e:
+            print(f'Error: {e}')
+            abort(422)
 
 
 #   @TODO:
@@ -219,7 +226,7 @@ def create_app(test_config=None):
         # Get each group of question with their categories.
         try:
             questionsbycategories = db.session.query(Question)\
-                .filter_by(Question.category == str(category_id)).all()
+                .filter(Question.category == str(category_id)).all()
             # paginate again the questions with their categories then return
             # all for view.
             questionspage = paginate_questions(request, questionsbycategories)
@@ -246,11 +253,15 @@ def create_app(test_config=None):
     @app.route('/quizzes', methods=['POST'])
     def play_quiz():
         try:
-            # get the request body , previous questions and the category.
             frombody = request.get_json()
             prevquestion = frombody.get('previous_questions')
             quizzcategory = frombody.get('quiz_category')
-            getcategoid = db.session.query(Category).get(category_id)
+            print(prevquestion)
+            print(quizzcategory)
+            getcategoid = db.session.query(Category).get(quizzcategory['id'])
+            print(getcategoid)
+            print(quizzcategory['id'])
+            print(type(quizzcategory['id']))
             # Abort 422 if not get previous_questions and quiz_category
             if ((quizzcategory is None) or (prevquestion is None)):
                 abort(422)
@@ -261,14 +272,14 @@ def create_app(test_config=None):
             # Query question for called category
             else:
                 prevquiz = db.session.query(Question)\
-                    .filter_by(category=category['id'])\
+                    .filter(Question.category == quizzcategory['id'])\
                     .filter(Question.id.notin_((prevquestion))).all()
             # Get rondom question using randrange method returns which will
             # selected question from the specified range.
             rondomquiz = prevquiz[random.randrange(
                 0, len(prevquiz))].format()if len(prevquiz) > 0 else None
 
-            # return the question
+        # return the question
             return jsonify({
                 'success': True,
                 'question': rondomquiz
